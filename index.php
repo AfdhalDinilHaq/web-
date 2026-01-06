@@ -1,0 +1,593 @@
+<?php
+$conn = new mysqli("localhost", "root", "", "mood_motivator");
+if ($conn->connect_error) die("DB Error");
+
+/* ===== API HANDLER ===== */
+if (isset($_GET['action'])) {
+  header("Content-Type: application/json");
+
+  /* Ambil quote */
+  if ($_GET['action'] === "get" && isset($_GET['mood'])) {
+    $mood = $_GET['mood'];
+    $q = $conn->prepare("SELECT text FROM quotes WHERE mood=? ORDER BY RAND() LIMIT 1");
+    $q->bind_param("s", $mood);
+    $q->execute();
+    $res = $q->get_result()->fetch_assoc();
+    echo json_encode($res ?: ["text"=>"Quote belum tersedia."]);
+    exit;
+  }
+
+  /* Tambah quote */
+  if ($_GET['action'] === "add" && isset($_POST['mood'], $_POST['text'])) {
+    $q = $conn->prepare("INSERT INTO quotes (mood,text) VALUES (?,?)");
+    $q->bind_param("ss", $_POST['mood'], $_POST['text']);
+    $q->execute();
+    echo json_encode(["status"=>"ok"]);
+    exit;
+  }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mood Motivator - Gen Z Edition</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#1c1d26;
+  --card:#23242f;
+  --accent:#8be8c9;
+  --accent2:#c8b9ff;
+  --text:#e8e8e8;
+  --transition:.35s ease;
+}
+
+body.light{
+  --bg:#f3f6fa;
+  --card:#ffffff;
+  --text:#1f1f1f;
+  --accent:#86d8c4;
+  --accent2:#b9a6ff;
+}
+
+*{box-sizing:border-box}
+
+body{
+  font-family:Poppins,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  transition:var(--transition);
+  overflow-x:hidden;
+}
+
+/* ===== Cursor Glow ===== */
+.cursor-glow{
+  position:fixed;
+  width:180px;height:180px;
+  border-radius:50%;
+  background:radial-gradient(var(--accent2),transparent 70%);
+  pointer-events:none;
+  opacity:.12;
+  transform:translate(-50%,-50%);
+  z-index:-1;
+}
+
+/* ===== TOGGLE FINAL (ANTI BOCO R) ===== */
+.toggle-wrapper{
+  position:fixed;
+  top:16px;
+  left:16px;
+  z-index:10;
+}
+
+.toggle{
+  width:70px;
+  height:32px;
+  border-radius:50px;
+  border:2px solid var(--accent);
+  background:var(--card);
+  position:relative;
+  cursor:pointer;
+  overflow:hidden;
+}
+
+/* SOLID COVER */
+.toggle .cover{
+  position:absolute;
+  inset:0;
+  background:var(--card);
+  z-index:2;
+}
+
+/* ICON */
+.toggle .icon{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:15px;
+  pointer-events:none;
+  z-index:1;
+}
+
+.toggle .moon{left:12px}
+.toggle .sun{right:12px}
+
+/* ICON KONDISIONAL */
+body.light .moon{display:none}
+body:not(.light) .sun{display:none}
+
+/* BALL */
+.toggle::after{
+  content:"";
+  position:absolute;
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  background:var(--accent);
+  top:50%;
+  left:3px;
+  transform:translateY(-50%);
+  transition:.35s ease;
+  z-index:3;
+}
+
+body.light .toggle::after{
+  left:39px;
+  background:var(--accent2);
+}
+
+/* ===== ADD QUOTE CARD ===== */
+.add-quote-card{
+  display:none;
+  width:100%;
+  margin-top:26px;
+  padding:20px;
+  background:linear-gradient(145deg,var(--card),rgba(255,255,255,.03));
+  border-radius:18px;
+  box-shadow:0 10px 22px rgba(0,0,0,.35);
+  animation:fadeUp .4s ease;
+}
+
+/* ===== FIX SELECT DROPDOWN ===== */
+.add-quote-card select{
+  background-color:var(--card);
+  color:var(--text);
+}
+
+/* Dropdown list */
+.add-quote-card select option{
+  background:#ffffff;
+  color:#1f1f1f;
+}
+
+/* Saat dark mode */
+body:not(.light) .add-quote-card select option{
+  background:#1f1f1f;
+  color:#ffffff;
+}
+
+.add-quote-card h3{
+  margin:0 0 14px;
+  font-size:18px;
+  text-align:center;
+  color:var(--accent);
+}
+
+.add-quote-card select,
+.add-quote-card textarea{
+  width:100%;
+  background:transparent;
+  border:2px solid var(--accent);
+  color:var(--text);
+  border-radius:12px;
+  padding:10px 12px;
+  font-family:Poppins,sans-serif;
+  margin-bottom:12px;
+  transition:.3s;
+}
+
+.add-quote-card textarea{
+  resize:none;
+  min-height:80px;
+}
+
+.add-quote-card select:focus,
+.add-quote-card textarea:focus{
+  outline:none;
+  border-color:var(--accent2);
+  box-shadow:0 0 0 3px rgba(140,200,255,.15);
+}
+
+.add-quote-card button{
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:30px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  color:#1f1f1f;
+  font-weight:600;
+  cursor:pointer;
+  transition:.3s;
+}
+
+.add-quote-card button:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(0,0,0,.35);
+}
+
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(20px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+
+/* ===== MAIN ===== */
+main{
+  flex:1;
+  max-width:520px;
+  width:100%;
+  padding:70px 20px 20px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+h1{
+  font-size:26px;
+  margin-bottom:14px;
+  text-align:center;
+}
+
+/* Avatar */
+#avatar{
+  width:90px;height:90px;
+  background:var(--card);
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:40px;
+  margin-bottom:14px;
+  cursor:pointer;
+  box-shadow:0 6px 14px rgba(0,0,0,.35);
+}
+
+/* Energy */
+#energy-bar{
+  width:200px;height:10px;
+  background:#444;
+  border-radius:10px;
+  overflow:hidden;
+  margin-bottom:24px;
+}
+#energy-fill{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  transition:.5s ease;
+}
+
+/* Buttons */
+.mood-buttons{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+button{
+  background:var(--card);
+  color:var(--text);
+  border:2px solid var(--accent);
+  padding:12px 22px;
+  border-radius:30px;
+  cursor:pointer;
+  transition:var(--transition);
+}
+button:hover{
+  background:var(--accent);
+  color:#1e1e1e;
+  transform:translateY(-3px);
+}
+
+/* Motivation */
+#motivation{
+  background:var(--card);
+  padding:22px 26px;
+  border-radius:14px;
+  width:100%;
+  min-height:90px;
+  margin-top:22px;
+  font-size:17px;
+  line-height:1.6;
+  box-shadow:0 6px 14px rgba(0,0,0,.4);
+  opacity:0;
+  transform:translateY(20px);
+  transition:.35s ease;
+}
+#motivation.show{
+  opacity:1;
+  transform:translateY(0);
+}
+
+/* Gabut */
+#gabut-tools{display:none;margin-top:14px}
+#gabut-tools button{
+  background:var(--accent2);
+  border:none;
+  color:#fff;
+  margin:4px;
+}
+
+/* Floating Emoji */
+.floating-emoji{
+  position:fixed;
+  font-size:32px;
+  animation:floatUp 2s linear forwards;
+  pointer-events:none;
+}
+@keyframes floatUp{
+  to{opacity:0;transform:translateY(-120px)}
+}
+
+/* Avatar Animations */
+.avatar-happy{animation:bounce .6s}
+.avatar-sad{animation:droop .8s}
+.avatar-stress{animation:shake .4s}
+.avatar-lazy{animation:sleepy 1.2s}
+
+@keyframes bounce{50%{transform:translateY(-12px)}}
+@keyframes droop{to{transform:scale(.9)}}
+@keyframes sleepy{50%{transform:rotate(-5deg)}}
+@keyframes shake{
+  25%{transform:translateX(-5px)}
+  50%{transform:translateX(5px)}
+  75%{transform:translateX(-5px)}
+}
+
+/* Footer */
+footer{
+  width:100%;
+  text-align:center;
+  padding:12px 0;
+  font-size:13px;
+  opacity:.6;
+}
+</style>
+</head>
+<body>
+
+<div class="cursor-glow"></div>
+
+<div class="toggle-wrapper">
+  <div class="toggle" onclick="toggleMode()">
+    <div class="cover"></div>
+    <span class="icon moon">🌙</span>
+    <span class="icon sun">☀️</span>
+  </div>
+</div>
+
+<main>
+  <h1>Gimana mood kamu hari ini?</h1>
+  <div id="avatar">🙂</div>
+  <div id="energy-bar"><div id="energy-fill"></div></div>
+
+  <div class="mood-buttons">
+    <button onclick="pickMood('senang','😄')">Senang</button>
+    <button onclick="pickMood('sedih','🥲')">Sedih</button>
+    <button onclick="pickMood('stres','😵‍💫')">Stres</button>
+    <button onclick="pickMood('malas','😪')">Malas</button>
+    <button onclick="pickMood('gabut','🤨')">Gabut</button>
+  </div>
+
+  <div id="motivation"></div>
+
+  <div id="gabut-tools">
+    <button onclick="randomBg()">Acak Latar</button>
+    <button onclick="spawnEmoji()">Spam Emoji</button>
+    <button onclick="shakeAvatar()">Shake Avatar</button>
+  </div>
+  <div id="add-quote" class="add-quote-card">
+  <h3>✨ Tambah Quote Baru</h3>
+    <select id="newMood">
+      <option value="senang">Senang</option>
+      <option value="sedih">Sedih</option>
+      <option value="stres">Stres</option>
+      <option value="malas">Malas</option>
+      <option value="gabut">Gabut</option>
+    </select>
+    <textarea id="newQuote" placeholder="Tulis quote baru..." style="width:100%;margin-top:8px"></textarea>
+    <button onclick="addQuote()">Tambah Quote</button>
+  </div>
+
+</main>
+
+<footer>© 2025 Mood Motivator | Gen Z Edition</footer>
+
+
+<script>
+const glow=document.querySelector(".cursor-glow");
+document.addEventListener("mousemove",e=>{
+  glow.style.left=e.clientX+"px";
+  glow.style.top=e.clientY+"px";
+});
+</script>
+
+<script>
+  function addQuote(){
+  const mood = document.getElementById("newMood").value;
+  const text = document.getElementById("newQuote").value.trim();
+
+  if (!text) {
+    alert("Quote tidak boleh kosong");
+    return;
+  }
+
+  fetch("?action=add", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `mood=${mood}&text=${encodeURIComponent(text)}`
+  })
+  .then(res => res.json())
+  .then(() => {
+    document.getElementById("newQuote").value = "";
+    showQuote(mood);
+    alert("Quote berhasil ditambahkan ✨");
+    document.getElementById("newQuote").value="";
+
+  });
+}
+
+
+let typingInterval = null;
+
+function typeText(el, text){
+  if (!text) {
+    el.textContent = "Quote belum tersedia.";
+    return;
+  }
+
+  if (typingInterval) clearInterval(typingInterval);
+
+  el.textContent = "";
+  let i = 0;
+
+  typingInterval = setInterval(() => {
+    el.textContent += text.charAt(i++);
+    if (i >= text.length) {
+      clearInterval(typingInterval);
+      typingInterval = null;
+    }
+  }, 30);
+}
+
+function typeText(el,text){
+  if(!text){
+    el.textContent="Quote belum tersedia.";
+    return;
+  }
+
+  el.textContent="";
+  let i=0;
+  typingInterval=setInterval(()=>{
+    el.textContent+=text.charAt(i++);
+    if(i>=text.length){
+      clearInterval(typingInterval);
+      typingInterval=null;
+    }
+  },30);
+}
+
+
+const avatarAnimMap = {
+  senang: "avatar-happy",
+  sedih: "avatar-sad",
+  stres: "avatar-stress",
+  malas: "avatar-lazy",
+  gabut: "avatar-stress"
+};
+
+function pickMood(mood, emoji){
+  const a = document.getElementById("avatar");
+  document.getElementById("add-quote").style.display =
+  mood === "gabut" ? "block" : "none";
+
+
+  a.textContent = emoji;
+
+  // RESET ANIMASI (WAJIB)
+  a.className = "";
+  void a.offsetWidth; // force reflow
+  a.classList.add(avatarAnimMap[mood]);
+
+  updateEnergy(mood);
+  spawnEmoji();
+  showQuote(mood);
+
+  document.getElementById("gabut-tools").style.display =
+    mood === "gabut" ? "block" : "none";
+}
+
+function showQuote(mood){
+  const box = document.getElementById("motivation");
+
+  if (typingInterval){
+    clearInterval(typingInterval);
+    typingInterval = null;
+  }
+
+  box.classList.remove("show");
+
+  fetch(`?action=get&mood=${mood}`)
+    .then(res => res.json())
+    .then(data => {
+      setTimeout(()=>{
+        box.classList.add("show");
+        typeText(box, data.text || "Quote belum tersedia.");
+      },150);
+    })
+    .catch(()=>{
+      typeText(box,"Quote belum tersedia.");
+    });
+}
+
+
+
+
+function updateEnergy(mood){
+  const e={senang:90,sedih:30,stres:45,malas:20,gabut:50};
+  document.getElementById("energy-fill").style.width=e[mood]+"%";
+}
+
+/* FIX SHAKE */
+function shakeAvatar(){
+  const a=document.getElementById("avatar");
+  a.classList.remove("avatar-stress");
+  void a.offsetWidth;
+  a.classList.add("avatar-stress");
+}
+
+/* TOGGLE FIX */
+function toggleMode(){
+  document.body.classList.toggle("light");
+  document.body.style.background="";
+  shakeAvatar();
+}
+
+function randomBg(){
+  const light=document.body.classList.contains("light");
+  document.body.style.background=
+    light
+    ? `hsl(${Math.random()*360},60%,90%)`
+    : `hsl(${Math.random()*360},45%,12%)`;
+}
+
+function spawnEmoji(){
+  const e=["🤡","😹","😴","👽","✨"];
+  const el=document.createElement("div");
+  el.className="floating-emoji";
+  el.style.left=Math.random()*90+"vw";
+  el.style.top="70vh";
+  el.textContent=e[Math.floor(Math.random()*e.length)];
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),2000);
+}
+
+let c=0;
+avatar.onclick=()=>{
+  if(++c===5){alert("STOP KLIK AKU 😭");c=0;}
+};
+</script>
+
+</body>
+</html>
