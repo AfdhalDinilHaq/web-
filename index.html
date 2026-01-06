@@ -1,33 +1,3 @@
-<?php
-$conn = new mysqli("localhost", "root", "", "mood_motivator");
-if ($conn->connect_error) die("DB Error");
-
-/* ===== API HANDLER ===== */
-if (isset($_GET['action'])) {
-  header("Content-Type: application/json");
-
-  /* Ambil quote */
-  if ($_GET['action'] === "get" && isset($_GET['mood'])) {
-    $mood = $_GET['mood'];
-    $q = $conn->prepare("SELECT text FROM quotes WHERE mood=? ORDER BY RAND() LIMIT 1");
-    $q->bind_param("s", $mood);
-    $q->execute();
-    $res = $q->get_result()->fetch_assoc();
-    echo json_encode($res ?: ["text"=>"Quote belum tersedia."]);
-    exit;
-  }
-
-  /* Tambah quote */
-  if ($_GET['action'] === "add" && isset($_POST['mood'], $_POST['text'])) {
-    $q = $conn->prepare("INSERT INTO quotes (mood,text) VALUES (?,?)");
-    $q->bind_param("ss", $_POST['mood'], $_POST['text']);
-    $q->execute();
-    echo json_encode(["status"=>"ok"]);
-    exit;
-  }
-}
-?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -70,7 +40,6 @@ body{
   overflow-x:hidden;
 }
 
-/* ===== Cursor Glow ===== */
 .cursor-glow{
   position:fixed;
   width:180px;height:180px;
@@ -82,7 +51,6 @@ body{
   z-index:-1;
 }
 
-/* ===== TOGGLE FINAL (ANTI BOCO R) ===== */
 .toggle-wrapper{
   position:fixed;
   top:16px;
@@ -101,7 +69,6 @@ body{
   overflow:hidden;
 }
 
-/* SOLID COVER */
 .toggle .cover{
   position:absolute;
   inset:0;
@@ -109,7 +76,6 @@ body{
   z-index:2;
 }
 
-/* ICON */
 .toggle .icon{
   position:absolute;
   top:50%;
@@ -122,11 +88,9 @@ body{
 .toggle .moon{left:12px}
 .toggle .sun{right:12px}
 
-/* ICON KONDISIONAL */
 body.light .moon{display:none}
 body:not(.light) .sun{display:none}
 
-/* BALL */
 .toggle::after{
   content:"";
   position:absolute;
@@ -146,7 +110,6 @@ body.light .toggle::after{
   background:var(--accent2);
 }
 
-/* ===== ADD QUOTE CARD ===== */
 .add-quote-card{
   display:none;
   width:100%;
@@ -158,19 +121,16 @@ body.light .toggle::after{
   animation:fadeUp .4s ease;
 }
 
-/* ===== FIX SELECT DROPDOWN ===== */
 .add-quote-card select{
   background-color:var(--card);
   color:var(--text);
 }
 
-/* Dropdown list */
 .add-quote-card select option{
   background:#ffffff;
   color:#1f1f1f;
 }
 
-/* Saat dark mode */
 body:not(.light) .add-quote-card select option{
   background:#1f1f1f;
   color:#ffffff;
@@ -230,8 +190,6 @@ body:not(.light) .add-quote-card select option{
   to{opacity:1;transform:translateY(0)}
 }
 
-
-/* ===== MAIN ===== */
 main{
   flex:1;
   max-width:520px;
@@ -248,7 +206,6 @@ h1{
   text-align:center;
 }
 
-/* Avatar */
 #avatar{
   width:90px;height:90px;
   background:var(--card);
@@ -262,7 +219,6 @@ h1{
   box-shadow:0 6px 14px rgba(0,0,0,.35);
 }
 
-/* Energy */
 #energy-bar{
   width:200px;height:10px;
   background:#444;
@@ -277,7 +233,6 @@ h1{
   transition:.5s ease;
 }
 
-/* Buttons */
 .mood-buttons{
   display:flex;
   gap:12px;
@@ -300,7 +255,6 @@ button:hover{
   transform:translateY(-3px);
 }
 
-/* Motivation */
 #motivation{
   background:var(--card);
   padding:22px 26px;
@@ -320,7 +274,6 @@ button:hover{
   transform:translateY(0);
 }
 
-/* Gabut */
 #gabut-tools{display:none;margin-top:14px}
 #gabut-tools button{
   background:var(--accent2);
@@ -329,7 +282,6 @@ button:hover{
   margin:4px;
 }
 
-/* Floating Emoji */
 .floating-emoji{
   position:fixed;
   font-size:32px;
@@ -340,7 +292,6 @@ button:hover{
   to{opacity:0;transform:translateY(-120px)}
 }
 
-/* Avatar Animations */
 .avatar-happy{animation:bounce .6s}
 .avatar-sad{animation:droop .8s}
 .avatar-stress{animation:shake .4s}
@@ -355,7 +306,6 @@ button:hover{
   75%{transform:translateX(-5px)}
 }
 
-/* Footer */
 footer{
   width:100%;
   text-align:center;
@@ -414,17 +364,18 @@ footer{
 
 <footer>© 2025 Mood Motivator | Gen Z Edition</footer>
 
-
 <script>
+// Efek Glow Mengikuti Mouse
 const glow=document.querySelector(".cursor-glow");
 document.addEventListener("mousemove",e=>{
   glow.style.left=e.clientX+"px";
   glow.style.top=e.clientY+"px";
 });
-</script>
 
-<script>
-  function addQuote(){
+let typingInterval = null;
+
+// Fungsi Menambah Quote ke Vercel KV
+function addQuote(){
   const mood = document.getElementById("newMood").value;
   const text = document.getElementById("newQuote").value.trim();
 
@@ -433,35 +384,32 @@ document.addEventListener("mousemove",e=>{
     return;
   }
 
-  fetch("?action=add", {
+  // Panggil API Serverless Vercel
+  fetch("/api/quotes?action=add", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `mood=${mood}&text=${encodeURIComponent(text)}`
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mood: mood, text: text })
   })
   .then(res => res.json())
-  .then(() => {
-    document.getElementById("newQuote").value = "";
-    showQuote(mood);
-    alert("Quote berhasil ditambahkan ✨");
-    document.getElementById("newQuote").value="";
-
-  });
+  .then(data => {
+    if(data.status === "ok"){
+      alert("Quote berhasil ditambahkan ke Database ✨");
+      document.getElementById("newQuote").value = "";
+      showQuote(mood);
+    }
+  })
+  .catch(err => alert("Gagal menambah quote. Cek koneksi KV Vercel."));
 }
 
-
-let typingInterval = null;
-
+// Efek Mengetik Teks
 function typeText(el, text){
   if (!text) {
     el.textContent = "Quote belum tersedia.";
     return;
   }
-
   if (typingInterval) clearInterval(typingInterval);
-
   el.textContent = "";
   let i = 0;
-
   typingInterval = setInterval(() => {
     el.textContent += text.charAt(i++);
     if (i >= text.length) {
@@ -470,24 +418,6 @@ function typeText(el, text){
     }
   }, 30);
 }
-
-function typeText(el,text){
-  if(!text){
-    el.textContent="Quote belum tersedia.";
-    return;
-  }
-
-  el.textContent="";
-  let i=0;
-  typingInterval=setInterval(()=>{
-    el.textContent+=text.charAt(i++);
-    if(i>=text.length){
-      clearInterval(typingInterval);
-      typingInterval=null;
-    }
-  },30);
-}
-
 
 const avatarAnimMap = {
   senang: "avatar-happy",
@@ -499,57 +429,42 @@ const avatarAnimMap = {
 
 function pickMood(mood, emoji){
   const a = document.getElementById("avatar");
-  document.getElementById("add-quote").style.display =
-  mood === "gabut" ? "block" : "none";
-
-
+  document.getElementById("add-quote").style.display = (mood === "gabut") ? "block" : "none";
   a.textContent = emoji;
-
-  // RESET ANIMASI (WAJIB)
   a.className = "";
   void a.offsetWidth; // force reflow
   a.classList.add(avatarAnimMap[mood]);
-
   updateEnergy(mood);
   spawnEmoji();
   showQuote(mood);
-
-  document.getElementById("gabut-tools").style.display =
-    mood === "gabut" ? "block" : "none";
+  document.getElementById("gabut-tools").style.display = (mood === "gabut") ? "block" : "none";
 }
 
+// Fungsi Mengambil Quote dari Vercel KV
 function showQuote(mood){
   const box = document.getElementById("motivation");
-
-  if (typingInterval){
-    clearInterval(typingInterval);
-    typingInterval = null;
-  }
-
+  if (typingInterval) clearInterval(typingInterval);
   box.classList.remove("show");
 
-  fetch(`?action=get&mood=${mood}`)
+  // Panggil API Serverless Vercel
+  fetch(`/api/quotes?action=get&mood=${mood}`)
     .then(res => res.json())
     .then(data => {
       setTimeout(()=>{
         box.classList.add("show");
         typeText(box, data.text || "Quote belum tersedia.");
-      },150);
+      }, 150);
     })
-    .catch(()=>{
-      typeText(box,"Quote belum tersedia.");
+    .catch(() => {
+      typeText(box, "Gagal memuat quote dari database.");
     });
 }
-
-
-
 
 function updateEnergy(mood){
   const e={senang:90,sedih:30,stres:45,malas:20,gabut:50};
   document.getElementById("energy-fill").style.width=e[mood]+"%";
 }
 
-/* FIX SHAKE */
 function shakeAvatar(){
   const a=document.getElementById("avatar");
   a.classList.remove("avatar-stress");
@@ -557,7 +472,6 @@ function shakeAvatar(){
   a.classList.add("avatar-stress");
 }
 
-/* TOGGLE FIX */
 function toggleMode(){
   document.body.classList.toggle("light");
   document.body.style.background="";
@@ -566,10 +480,7 @@ function toggleMode(){
 
 function randomBg(){
   const light=document.body.classList.contains("light");
-  document.body.style.background=
-    light
-    ? `hsl(${Math.random()*360},60%,90%)`
-    : `hsl(${Math.random()*360},45%,12%)`;
+  document.body.style.background= light ? `hsl(${Math.random()*360},60%,90%)` : `hsl(${Math.random()*360},45%,12%)`;
 }
 
 function spawnEmoji(){
@@ -580,11 +491,11 @@ function spawnEmoji(){
   el.style.top="70vh";
   el.textContent=e[Math.floor(Math.random()*e.length)];
   document.body.appendChild(el);
-  setTimeout(()=>el.remove(),2000);
+  setTimeout(()=>el.remove(), 2000);
 }
 
 let c=0;
-avatar.onclick=()=>{
+document.getElementById("avatar").onclick=()=>{
   if(++c===5){alert("STOP KLIK AKU 😭");c=0;}
 };
 </script>
