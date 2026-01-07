@@ -165,6 +165,38 @@ main{
     100% { transform: translate(100vw, -120vh) rotate(360deg); opacity: 0; }
 }
 
+/* Tambahkan di dalam tag <style> */
+.vibe-btn {
+    background: #f4a460 !important; /* Warna cokelat kue */
+    color: #5d2e0a !important;
+    border: 2px solid #d2691e !important;
+    font-weight: bold;
+}
+
+#vibe-text {
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.shake-anim {
+    animation: cookieShake 0.4s ease;
+}
+
+@keyframes cookieShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px) rotate(-2deg); }
+    75% { transform: translateX(5px) rotate(2deg); }
+}
+
+#mute-btn {
+    transition: all 0.3s ease;
+}
+
+/* Tambahkan class ini lewat JS jika ingin tombol berubah warna saat mute */
+.muted-active {
+    background: rgba(255, 0, 0, 0.2) !important;
+    border-color: #ff4081 !important;
+}
+
 footer{ padding: 30px; font-size: 12px; opacity: 0.5; }
 </style>
 </head>
@@ -180,6 +212,11 @@ footer{ padding: 30px; font-size: 12px; opacity: 0.5; }
 <div class="capture-wrapper">
     <button onclick="captureMode()" class="tool-btn" style="background:rgba(255,255,255,0.1); color:var(--text); border:1px solid rgba(255,255,255,0.2);">📸 Capture</button>
 </div>
+
+<div class="sound-toggle-wrapper" style="position: fixed; top: 20px; right: 140px; z-index: 10;">
+    <button onclick="toggleSound()" class="tool-btn" id="mute-btn" style="background:rgba(255,255,255,0.1); color:var(--text); border:1px solid rgba(255,255,255,0.2);">🔊</button>
+</div>
+
 
 <main>
   <h1>Gimana mood kamu hari ini?</h1>
@@ -208,20 +245,200 @@ footer{ padding: 30px; font-size: 12px; opacity: 0.5; }
   </div>
 
   <div id="vibe-box">
-    <button onclick="getVibeCheck()" class="tool-btn vibe-btn">Daily Vibe Check 🔮</button>
+    <button onclick="getVibeCheck()" class="tool-btn vibe-btn">Fortune Cookies 🥠✨</button>
     <p id="vibe-text" style="font-style: italic; margin-top: 15px; color: #ff79c6; min-height: 24px; font-weight: 500;"></p>
   </div>
 
   <div id="gabut-tools">
     <button class="tool-btn" onclick="discoMode()">Mode Disko 🕺</button>
-    <button class="tool-btn" onclick="spawnEmojiSuper()">Ledakan 100 Emoji! 💥</button>
+    <button class="tool-btn" onclick="spawnEmojiSuper()">Ledakan Emoji! 💥</button>
   </div>
 </main>
 
-<footer>© 2025 Mood Motivator | Gen Z Edition</footer>
+<footer>© Mood Motivator | Gen Z Edition</footer>
 
 <script>
-/* 1. INTERACTIVE NEURAL BACKGROUND */
+/* --- 1. CONFIGURATION & ASSETS --- */
+const sounds = {
+    senang: new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3'),
+    sedih: new Audio('https://assets.mixkit.co/active_storage/sfx/123/123-preview.mp3'),
+    stres: new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3'),
+    malas: new Audio('https://assets.mixkit.co/active_storage/sfx/1003/1003-preview.mp3'),
+    gabut: new Audio('https://assets.mixkit.co/active_storage/sfx/2004/2004-preview.mp3'),
+    fortune: new Audio('https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3'),
+    manifest: new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3'),
+    disco: new Audio('https://assets.mixkit.co/active_storage/sfx/2001/2001-preview.mp3'),
+};
+
+const explosionSounds = [
+    new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'),
+    new Audio('https://assets.mixkit.co/active_storage/sfx/2578/2578-preview.mp3'),
+    new Audio('https://assets.mixkit.co/active_storage/sfx/2579/2579-preview.mp3')
+];
+
+const quotes = { 
+    senang: [
+        "Main Character energy! Terus bersinar ya! ✨",
+        "Vibes kamu hari ini nular ke orang lain, keren! 🌈",
+        "Jangan lupa rayakan kemenangan kecilmu hari ini! 🥂",
+        "Senyummu itu aset paling mahal, pakai terus! 💎"
+    ], 
+    sedih: [
+        "Gak apa-apa sedih, esok pasti lebih cerah. 🫂",
+        "Peluk jauh buat kamu. Take your time ya. 🤍",
+        "Awan mendung gak akan selamanya ada di langitmu. ☁️",
+        "Menangis bukan berarti lemah, itu tanda kamu manusia. 💧"
+    ],
+    stres: [
+        "Tarik napas.. kamu lebih kuat dari masalahmu. 💪",
+        "Gak semua harus selesai hari ini, istirahat dulu. 🛑",
+        "Kamu sudah berusaha hebat, bangga sama dirimu! ⭐"
+    ],
+    malas: [
+        "Rebahan bentar buat cas energi, tapi jangan kebablasan! 🔋",
+        "Mager itu manusiawi, nikmati waktu tenangmu. 🛌"
+    ],
+    gabut: [
+        "Waktu kosong adalah peluang buat hal baru! 💡",
+        "Semesta lagi dengerin, coba manifestasi sesuatu! 🧠"
+    ]
+};
+
+const vibes = [
+  "Saran hari ini: Gak usah CO keranjang malam ini, sayang duitnya! 🛒",
+  "Semesta bilang: Ada chat yang bikin senyum minggu depan. 👀",
+  "Status Jodoh: Lagi di jalan, cuma kejebak macet total. Sabar ya! 🛵",
+  "Mood hari ini: Butuh es kopi tapi takut asam lambung. 🧋",
+  "Manifestasimu lagi diproses kurir semesta, tungguin aja! 📦",
+  "Vibe Check: Kamu lagi cakep banget hari ini, jangan lupa ngaca! ✨",
+  "Status: Lagi cakep banget, jangan lupa ngaca! ✨", 
+  "Saran: Stop scroll TikTok, mending jajan es kopi. 🧋", 
+  "Vibe hari ini: Main Character energy! 💅", 
+  "Gak usah CO keranjang malam ini, sayang duitnya. 🛒", 
+  "Semesta bilang: Kamu butuh liburan, bukan revisi. 🏖️", 
+  "Mood: Butuh seblak level 5 buat bertahan hidup. 🥵", 
+  "Status Jodoh: Masih di tangan Tuhan, belum di tanganmu. 🛵", 
+  "Vibe: Lagi pengen menghilang dari peradaban. ✈️", 
+  "Jangan terlalu baik, inget kamu bukan takjil. 🌙",
+  "Dompet: Kritis. Semangat: Minimalis. Gaya: Maksimalis. 💸", 
+  "Hari ini kamu cantik, tapi bohong. Gak ding, beneran! ❤️",
+  "Stop overthinking, nanti kerutan nambah. 🧠", 
+  "Vibe: Butuh tidur 3 hari 3 malam. 🛌", 
+  "Rating hari ini: 10/10 kalau kamu gak mager. 📈", 
+  "Lagi mode 'Iya-in aja biar cepet'. 🫠", 
+  "Asmara: Lagi di-ghosting semesta. 👻", 
+  "Lagi nunggu chat yang gak kunjung dateng. 👀", 
+  "Jangan lupa minum air putih, biar gak halu mikirin dia. 💧", 
+  "Vibe: Pingin kaya tapi gak mau kerja. 🤑", 
+  "Status: Mencoba tetap waras di tengah gempuran tugas. 😵‍💫", 
+  "Semesta bilang: Ada chat yang bikin senyum besok pagi! 💌", 
+  "Manifestasi hari ini: Rekening tiba-tiba nambah nol-nya. 💰", 
+  "Hoki kamu hari ini: 99.9%! Gas terus! 🔥", 
+  "Ada orang diem-diem lagi stalking profil kamu. 🕵️", 
+  "Minggu ini bakal ada kabar baik yang gak disangka. 🎁", 
+  "Manifestasi: Apapun yang kamu mau, bakal 'Sat Set'! ✨", 
+  "Vibe: Magnet uang dan keberuntungan. 🧲", 
+  "Karma baik lagi nyari jalan buat nemuin kamu. 🍀", 
+  "Doi sebentar lagi sadar kalau kamu berharga. 💎",
+  "Kesabaranmu bakal dibayar tuntas bulan ini! ⏳", 
+  "Mood: Pingin es krim tapi takut radang. 🍦", 
+  "Status: Low battery mental, butuh healing. 🪫", 
+  "Vibe: Gabut yang sangat produktif (tidur). 😴", 
+  "Lagi nunggu weekend padahal masih hari Senin. 🗓️", 
+  "Isi kepala: 10% Masa depan, 90% lirik lagu random. 🎶", 
+  "Gak usah mandi, kamu udah wangi kok dari jauh. 🌸", 
+  "Lagi tahap sayang ke diri sendiri dulu. 🧘", 
+  "Status: Jomblo elite, trauma sulit. 🛡️", 
+  "Mood: Butuh yang manis-manis, selain janji dia. 🍭",
+  "Vibe: Chill aja, dunia gak bakal kiamat cuma karena typo. ✌️", 
+  "Kamu hebat sudah bertahan sejauh ini. Bangga banget! 👏", 
+  "Pelan-pelan aja, yang penting jalan terus. 🚶", 
+  "Dunia butuh versi kamu yang paling bahagia. 😊", 
+  "Gak apa-apa capek, besok mulai lagi ya. 🔋", 
+  "Your potential is limitless, jangan dengerin haters! 🚀", 
+  "Satu langkah kecil hari ini lebih baik dari nol. 👣", 
+  "Stay hydrated and stay humble! 🥤", 
+  "Mimpi besar butuh istirahat yang cukup juga. 🌙", 
+  "Everything will make sense soon. Sabar ya! 🌈", 
+  "You are enough. Always have been. 💖", 
+  "Vibes: Lagi pengen dimanja tapi gak ada pawangnya. 🥺",
+  "Kurangi ekspektasi, perbanyak apresiasi diri. ✨", 
+  "Hari ini bakal ada diskon makanan buat kamu! 🍕", 
+  "Lagi di tahap 'apa aja ayo' asal jangan kerja. 🏃", 
+  "Visual: Sempurna. Dompet: Berdoa. 🤲", 
+  "Self reward-nya jangan kebablasan, inget cicilan. 💳", 
+  "Ada kejutan di balik kejadian yang bikin kesel tadi. 🎁", 
+  "Kamu itu limited edition, jangan minder! 🦄", 
+  "Vibe: Aura-aura dapet uang kaget. 💸", 
+  "Jangan lupa senyum, biar yang benci makin panas. 🔥", 
+  "Mood: Pengen jajan terus tapi pengen kurus. 🥨", 
+  "Dunia lagi baik, mintalah apa saja hari ini. 🌌", 
+  "Status asmara: Belum ada hilalnya. 🔭", 
+  "Fokus ke diri sendiri, yang lain cuma penonton. 🎭", 
+  "Manifestasi: Minggu depan full healing tanpa pusing. 🍀", 
+  "Vibe: Lagi pengen dengerin lagu galau tapi lagi seneng. 🎧", 
+  "Kamu lebih kuat dari yang kamu bayangkan. 💪", 
+  "Hari ini cocok buat memulai hal baru! 🚀", 
+  "Status: Sibuk memperbaiki masa depan. 🛠️", 
+  "Jangan bandingin hidupmu sama feed IG orang. 📱", 
+  "Vibe: Menunggu libur nasional berikutnya. 📅", 
+  "Lagi butuh asupan vitamin Sea. 🌊",
+  "Saran: Tidur siang 15 menit biar gak emosi. 😴",
+  "Hari ini aura keberuntunganmu warna emas! 🟡", 
+  "Keep shining, dunia butuh cahayamu! 🌟",
+  "Status: Mencari jati diri di tumpukan tugas. 📂", 
+  "Vibe: Butuh pelukan, tapi pelukan kasur juga oke. 🛌", 
+  "Jangan dengerin omongan orang yang gak kasih makan kamu. 🤫",
+  "Manifestasi: Besok bangun-bangun glowing! ✨", 
+  "Vibe: Lagi pengen ngopi sambil liatin hujan. ☕", 
+  "Hati-hati, hari ini ada yang kangen kamu berat. 💓", 
+  "Mood: Lagi gak bisa diganggu gugat. 🚫", 
+  "Stay cool, drama-drama mah lewat aja. 😎",
+  "Vibe: Siap menaklukkan dunia setelah makan siang. 🍱", 
+  "Kamu itu berharga, jangan biarin satu orang bikin drop. 💎",
+  "Status: Lagi pengen jadi beban keluarga bentar aja. 👶", 
+  "Manifestasi: Segala urusan dimudahkan hari ini! ✅", 
+  "Vibe: Aura positif terpancar nyata! 🌈",
+  "Jangan lupa bahagia, minimal hari ini aja dulu. 😁",
+  "Lagi di mode hemat energi buat masa depan. 🔋", 
+  "Mood: Butuh divalidasi kalau aku itu pinter. 🧠", 
+  "Vibe: Menanti notifikasi transferan masuk. 📲", 
+  "Apapun yang kamu takutin, ternyata gak seserem itu. 🦁",
+  "Status: Masih memantau, belum mau bertindak. 🧐", 
+  "Vibe: Pengen jadi awan aja, tinggal terbang. ☁️",
+  "Hari ini kamu berhak dapet self-care maksimal! 💆",
+  "Manifestasi: Jodoh mendekat, utang menjauh. 🏹",
+  "Status: Lagi nunggu hilal kebahagiaan. 🌙",
+  "Vibe: Chill, heal, and still real. 🧘", 
+  "You did well today, istirahat ya! 🌙"
+];
+
+/* --- 2. GLOBAL STATES --- */
+let currentSound = null;
+let isMuted = false;
+let lastQuote = "";
+
+/* --- 3. AUDIO SYSTEM --- */
+function playSfx(name) {
+    if (currentSound) {
+        currentSound.pause();
+        currentSound.currentTime = 0;
+    }
+    if (isMuted || !sounds[name]) return;
+    currentSound = sounds[name];
+    currentSound.play().catch(e => console.log("Audio play blocked"));
+}
+
+function toggleSound() {
+    isMuted = !isMuted;
+    const btn = document.getElementById('mute-btn');
+    btn.textContent = isMuted ? "🔇" : "🔊";
+    if (isMuted && currentSound) {
+        currentSound.pause();
+    }
+}
+
+/* --- 4. VISUALS (NEURAL BG) --- */
 const canvas = document.getElementById('canvas-bg');
 const ctx = canvas.getContext('2d');
 let particles = [];
@@ -248,21 +465,17 @@ function init() {
 
 function draw() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    const isLight = document.body.classList.contains('light');
-    const color = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)';
-    
+    const color = document.body.classList.contains('light') ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)';
     particles.forEach((p, i) => {
         p.x += p.sx; p.y += p.sy;
         if(p.x<0||p.x>canvas.width) p.sx*=-1;
         if(p.y<0||p.y>canvas.height) p.sy*=-1;
-        
         ctx.fillStyle = color;
         ctx.beginPath(); ctx.arc(p.x, p.y, 1.5, 0, Math.PI*2); ctx.fill();
-
         for(let j=i; j<particles.length; j++) {
             const d = Math.hypot(p.x-particles[j].x, p.y-particles[j].y);
-            const md = Math.hypot(p.x-mouse.x, p.y-mouse.y);
             if(d<110) {
+                const md = Math.hypot(p.x-mouse.x, p.y-mouse.y);
                 ctx.strokeStyle = (md < 150) ? 'rgba(139, 232, 201, 0.3)' : color;
                 ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(p.x, p.y);
                 ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke();
@@ -274,100 +487,122 @@ function draw() {
 window.addEventListener('resize', init);
 init(); draw();
 
-/* 2. CORE MOOD LOGIC */
+/* --- 5. CORE LOGIC --- */
 function pickMood(mood, emoji, animClass) {
+    playSfx(mood);
     const a = document.getElementById("avatar");
     a.textContent = emoji;
     a.className = ""; 
     void a.offsetWidth; 
     a.classList.add(animClass);
 
-    const colors = { 
+    const glowColors = { 
         senang: 'rgba(255, 235, 59, 0.3)', 
         sedih: 'rgba(3, 169, 244, 0.3)', 
         stres: 'rgba(255, 64, 129, 0.3)', 
         malas: 'rgba(139, 195, 74, 0.3)', 
         gabut: 'rgba(255, 255, 255, 0.3)' 
     };
-    document.body.style.setProperty('--current-glow', colors[mood]);
+    document.body.style.setProperty('--current-glow', glowColors[mood]);
 
     updateEnergy(mood);
     showQuote(mood);
 
+    // Toggle Helpers
     document.getElementById('stress-helper').style.display = (mood === 'stres') ? 'block' : 'none';
-    document.getElementById('manifest-input').style.display = (mood === 'gabut') ? 'block' : 'none';
-    document.getElementById('gabut-tools').style.display = (mood === 'gabut') ? 'block' : 'none';
-    document.getElementById('vibe-box').style.display = (mood === 'gabut') ? 'block' : 'none';
+    const isGabut = (mood === 'gabut');
+    ['manifest-input', 'gabut-tools', 'vibe-box'].forEach(id => {
+        document.getElementById(id).style.display = isGabut ? 'block' : 'none';
+    });
 }
 
 function updateEnergy(mood) {
     const e = { senang: 98, sedih: 15, stres: 40, malas: 5, gabut: 55 };
-    document.getElementById("energy-fill").style.width = e[mood] + "%";
+    document.getElementById("energy-fill").style.width = (e[mood] || 50) + "%";
 }
 
 function showQuote(mood) {
-    const q = { 
-        senang: "Main Character energy! Terus bersinar ya! ✨", 
-        sedih: "Gak apa-apa sedih, esok pasti lebih cerah. 🫂", 
-        stres: "Hembuskan napas pelan.. kamu hebat sudah bertahan. 🧘‍♂️", 
-        malas: "Rebahan itu investasi energi. Tapi jangan lupa mandi! 🔋", 
-        gabut: "Semesta lagi dengerin, coba manifestasi sesuatu! 🧠" 
-    };
     const box = document.getElementById("motivation");
+    const listMood = quotes[mood];
+    if(!listMood) return;
+
+    let selectedQuote;
+    do {
+        selectedQuote = listMood[Math.floor(Math.random() * listMood.length)];
+    } while (selectedQuote === lastQuote && listMood.length > 1);
+
+    lastQuote = selectedQuote;
     box.classList.remove("show");
-    setTimeout(() => { box.textContent = q[mood]; box.classList.add("show"); }, 200);
+    setTimeout(() => { 
+        box.textContent = selectedQuote; 
+        box.classList.add("show"); 
+    }, 200);
 }
 
 function toggleMode() { document.body.classList.toggle("light"); }
 
-/* 3. GABUT FEATURES */
+/* --- 6. GABUT FEATURES --- */
 function sendManifest() {
     const input = document.getElementById('manifestText');
     if(!input.value) return;
+    playSfx('manifest'); 
 
     const el = document.createElement("div");
     el.className = "manifest-fly";
     el.textContent = input.value;
     el.style.top = (Math.random() * 60 + 20) + "vh";
+    el.style.left = "0px";
     document.body.appendChild(el);
     
     input.value = "";
-    spawnEmojiSuper(25); 
+    spawnEmojiVisualOnly(20); 
     setTimeout(() => el.remove(), 12000);
 }
 
-const vibes = [
-    "Saran hari ini: Gak usah CO keranjang malam ini, sayang duitnya! 🛒",
-    "Semesta bilang: Ada chat yang bikin senyum minggu depan. 👀",
-    "Status Jodoh: Lagi di jalan, cuma kejebak macet total. Sabar ya! 🛵",
-    "Mood hari ini: Butuh es kopi tapi takut asam lambung. 🧋",
-    "Manifestasimu lagi diproses kurir semesta, tungguin aja! 📦",
-    "Vibe Check: Kamu lagi cakep banget hari ini, jangan lupa ngaca! ✨"
-];
-
 function getVibeCheck() {
+    playSfx('fortune');
+    const btn = document.querySelector('.vibe-btn');
     const text = document.getElementById('vibe-text');
+    
+    btn.classList.add('shake-anim');
+    setTimeout(() => btn.classList.remove('shake-anim'), 400);
+
     const random = vibes[Math.floor(Math.random() * vibes.length)];
     text.style.opacity = 0;
     setTimeout(() => {
-        text.textContent = random;
+        text.textContent = "🥠: " + random;
         text.style.opacity = 1;
-        text.style.transition = "0.6s ease";
     }, 200);
 }
 
 function discoMode() {
+    playSfx('disco'); 
     let c = 0;
     const interval = setInterval(() => {
         document.body.style.backgroundColor = `hsl(${Math.random()*360}, 60%, 20%)`;
-        if(c++ > 30) { clearInterval(interval); document.body.style.backgroundColor = ""; }
+        if(c++ > 30) { 
+            clearInterval(interval); 
+            document.body.style.backgroundColor = ""; 
+        }
     }, 100);
 }
 
-function spawnEmojiSuper(count = 100) {
-    const emojis = ["🔥","✨","🌈","🥵","🧿","🚀","💖","🫠","🎉","🌸","🦋","👾","⚡️","💎","🍀","🎈","🌙","🌟","🍪","🧸","🐱","🍕","👑"];
+function spawnEmojiSuper() {
+    // Tombol Bom Emoji memicu suara letupan kecil
+    spawnEmojiVisualOnly(100, true);
+}
+
+function spawnEmojiVisualOnly(count, allowPopSounds = false) {
+    const emojis = ["🔥","✨","🌈","🥵","🚀","💖","🫠","🎉","🌸","🦋","💎","🍀","🎈","🌟"];
     for(let i=0; i<count; i++) {
         setTimeout(() => {
+            if (allowPopSounds && i % 10 === 0 && !isMuted) {
+                const randomPop = explosionSounds[Math.floor(Math.random() * explosionSounds.length)];
+                randomPop.currentTime = 0;
+                randomPop.volume = 0.2;
+                randomPop.play().catch(() => {});
+            }
+
             const el = document.createElement("div");
             el.style.position = "fixed";
             el.style.left = Math.random() * 100 + "vw";
@@ -390,22 +625,30 @@ function spawnEmojiSuper(count = 100) {
     }
 }
 
-/* 4. CAPTURE MODE */
 function captureMode() {
-    const btns = document.querySelector('.mood-buttons');
-    const footer = document.querySelector('footer');
-    const toggle = document.querySelector('.toggle-wrapper');
-    const capture = document.querySelector('.capture-wrapper');
-    const extra = [document.getElementById('stress-helper'), document.getElementById('manifest-input'), document.getElementById('gabut-tools'), document.getElementById('vibe-box')];
+    const elementsToHide = [
+        document.querySelector('.mood-buttons'),
+        document.querySelector('footer'),
+        document.querySelector('.toggle-wrapper'),
+        document.querySelector('.capture-wrapper'),
+        document.querySelector('.sound-toggle-wrapper'),
+        document.getElementById('stress-helper'),
+        document.getElementById('manifest-input'),
+        document.getElementById('gabut-tools'),
+        document.getElementById('vibe-box')
+    ];
 
-    [btns, footer, toggle, capture].forEach(el => el.style.visibility = 'hidden');
-    extra.forEach(el => { if(el.style.display === 'block') el.style.opacity = '0' });
-    
-    alert("Siap Capture! Ambil screenshot-mu sekarang. Halaman kembali normal dalam 7 detik.");
+    // Gunakan kurung kurawal untuk logika IF
+    elementsToHide.forEach(el => {
+        if(el) el.style.visibility = 'hidden';
+    });
+
+    alert("📸 Capture Mode Aktif! Screenshot sekarang. Kembali normal dalam 7 detik.");
     
     setTimeout(() => {
-        [btns, footer, toggle, capture].forEach(el => el.style.visibility = 'visible');
-        extra.forEach(el => el.style.opacity = '1');
+        elementsToHide.forEach(el => {
+            if(el) el.style.visibility = 'visible';
+        });
     }, 7000);
 }
 </script>
